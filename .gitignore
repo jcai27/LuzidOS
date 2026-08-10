@@ -32,9 +32,18 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
+
+# app data
+/data/
+
+# local Claude Code config / auto-installed agent skill docs
+/.claude/
+/.agents/
+/skills-lock.json
 
 # typescript
 *.tsbuildinfo
