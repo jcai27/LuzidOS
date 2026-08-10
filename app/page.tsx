@@ -31,9 +31,12 @@ const AGENTS: {
 
 export default function LaunchPage() {
   return (
-    <div className="max-w-4xl mx-auto px-6 py-10">
-      <h1 className="text-2xl font-semibold mb-1">Launch an agent</h1>
-      <p className="text-neutral-400 mb-8 text-sm">
+    <div className="max-w-4xl mx-auto px-6 py-12">
+      <p className="font-mono text-xs uppercase tracking-widest text-brand mb-3">
+        Agent launch
+      </p>
+      <h1 className="text-3xl font-semibold mb-2 tracking-tight">Launch an agent</h1>
+      <p className="text-slate mb-10 text-sm">
         Upload an Excel spreadsheet and launch a Browser Use agent against the SAP sandbox.
       </p>
       <div className="grid sm:grid-cols-2 gap-6">
@@ -73,16 +76,16 @@ function AgentCard({ agent }: { agent: (typeof AGENTS)[number] }) {
   }
 
   return (
-    <div className="border border-neutral-800 rounded-lg p-5 flex flex-col gap-4 bg-neutral-900/40">
+    <div className="border border-panel-border rounded-2xl p-6 flex flex-col gap-4 bg-panel">
       <div>
-        <h2 className="font-medium">{agent.title}</h2>
-        <p className="text-sm text-neutral-400 mt-1">{agent.description}</p>
+        <h2 className="font-medium text-white">{agent.title}</h2>
+        <p className="text-sm text-slate mt-1.5 leading-relaxed">{agent.description}</p>
       </div>
 
-      <div className="text-xs text-neutral-500">
-        Expected columns: <code className="text-neutral-300">{agent.columns}</code>
+      <div className="text-xs text-slate/70">
+        Expected columns: <code className="text-slate">{agent.columns}</code>
         {" · "}
-        <a href={agent.sample} className="underline hover:text-neutral-300" download>
+        <a href={agent.sample} className="text-brand hover:text-brand-hover underline underline-offset-2" download>
           download sample
         </a>
       </div>
@@ -92,7 +95,7 @@ function AgentCard({ agent }: { agent: (typeof AGENTS)[number] }) {
           type="file"
           accept=".xlsx"
           onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-          className="block w-full text-xs text-neutral-400 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:bg-neutral-800 file:text-neutral-200 hover:file:bg-neutral-700"
+          className="block w-full text-xs text-slate file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-ink file:text-slate hover:file:text-white file:cursor-pointer cursor-pointer"
         />
       </label>
 
@@ -101,7 +104,7 @@ function AgentCard({ agent }: { agent: (typeof AGENTS)[number] }) {
       <button
         onClick={launch}
         disabled={launching}
-        className="mt-auto bg-neutral-100 text-neutral-900 rounded px-4 py-2 text-sm font-medium disabled:opacity-50 hover:bg-white"
+        className="mt-auto bg-brand text-white rounded-lg px-4 py-2.5 text-sm font-medium disabled:opacity-50 hover:bg-brand-hover transition-colors"
       >
         {launching ? "Launching…" : `Launch ${agent.title}`}
       </button>

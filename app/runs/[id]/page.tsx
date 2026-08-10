@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useParams, useRouter } from "next/navigation";
 import type { RunRow } from "@/lib/db";
 import { AGENT_LABEL, STATUS_COLOR, STATUS_LABEL, formatTime } from "@/lib/format";
@@ -52,7 +52,7 @@ export default function RunPage() {
   }, [id]);
 
   if (!run) {
-    return <div className="max-w-4xl mx-auto px-6 py-10 text-neutral-400">Loading…</div>;
+    return <div className="max-w-4xl mx-auto px-6 py-10 text-slate">Loading…</div>;
   }
 
   const events: BUEvent[] = run.events_json ? JSON.parse(run.events_json) : [];
@@ -78,23 +78,26 @@ export default function RunPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-10 flex flex-col gap-6">
+    <div className="max-w-4xl mx-auto px-6 py-12 flex flex-col gap-7">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold">{AGENT_LABEL[run.agent_type]}</h1>
-          <p className="text-xs text-neutral-500 mt-1">
-            {run.namespace_tag} · launched {formatTime(run.created_at)} · input: {run.input_filename}
+          <p className="font-mono text-xs uppercase tracking-widest text-brand mb-2">
+            {AGENT_LABEL[run.agent_type]}
+          </p>
+          <h1 className="text-2xl font-semibold tracking-tight">{run.namespace_tag}</h1>
+          <p className="text-xs text-slate/70 mt-1.5">
+            launched {formatTime(run.created_at)} · input: {run.input_filename}
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <span className={`text-xs px-2 py-1 rounded ${STATUS_COLOR[run.status]}`}>
+          <span className={`text-xs px-2.5 py-1 rounded-md font-mono ${STATUS_COLOR[run.status]}`}>
             {STATUS_LABEL[run.status] ?? run.status}
           </span>
           {isRunning && (
             <button
               onClick={stop}
               disabled={stopping}
-              className="text-xs px-3 py-1.5 rounded border border-neutral-700 hover:bg-neutral-800 disabled:opacity-50"
+              className="text-xs px-3 py-1.5 rounded-lg border border-panel-border hover:border-slate/40 hover:text-white disabled:opacity-50 transition-colors"
             >
               {stopping ? "Stopping…" : "Stop"}
             </button>
@@ -103,7 +106,7 @@ export default function RunPage() {
             <button
               onClick={retry}
               disabled={retrying}
-              className="text-xs px-3 py-1.5 rounded border border-neutral-700 hover:bg-neutral-800 disabled:opacity-50"
+              className="text-xs px-3 py-1.5 rounded-lg border border-panel-border hover:border-slate/40 hover:text-white disabled:opacity-50 transition-colors"
             >
               {retrying ? "Retrying…" : "Retry"}
             </button>
@@ -113,43 +116,43 @@ export default function RunPage() {
 
       {run.verdict && (
         <div
-          className={`rounded-lg px-4 py-3 text-sm ${
+          className={`rounded-2xl px-5 py-4 text-sm ${
             run.verdict === "pass"
               ? "bg-emerald-500/10 border border-emerald-500/30 text-emerald-300"
               : "bg-red-500/10 border border-red-500/30 text-red-300"
           }`}
         >
-          <span className="font-semibold uppercase tracking-wide">{run.verdict}</span>
-          {run.summary && <span className="ml-2">{run.summary}</span>}
+          <span className="font-mono font-semibold uppercase tracking-widest">{run.verdict}</span>
+          {run.summary && <span className="ml-2 text-white/90">{run.summary}</span>}
         </div>
       )}
 
       {run.error && !run.verdict && (
-        <div className="rounded-lg px-4 py-3 text-sm bg-red-500/10 border border-red-500/30 text-red-300">
+        <div className="rounded-2xl px-5 py-4 text-sm bg-red-500/10 border border-red-500/30 text-red-300">
           {run.error}
         </div>
       )}
 
       {run.live_view_url && isRunning && (
         <div>
-          <h2 className="text-sm font-medium text-neutral-300 mb-2">Live view</h2>
+          <SectionLabel>Live view</SectionLabel>
           <iframe
             src={run.live_view_url}
-            className="w-full aspect-video rounded border border-neutral-800"
+            className="w-full aspect-video rounded-2xl border border-panel-border"
           />
         </div>
       )}
 
       <div>
-        <h2 className="text-sm font-medium text-neutral-300 mb-2">Steps</h2>
-        <div className="border border-neutral-800 rounded-lg divide-y divide-neutral-800 text-sm max-h-96 overflow-y-auto">
+        <SectionLabel>Steps</SectionLabel>
+        <div className="border border-panel-border rounded-2xl divide-y divide-panel-border text-sm max-h-96 overflow-y-auto bg-panel">
           {events.length === 0 && (
-            <div className="px-4 py-3 text-neutral-500">Waiting for the agent to start…</div>
+            <div className="px-4 py-3 text-slate/70">Waiting for the agent to start…</div>
           )}
           {events.filter(shouldShowEvent).map((ev, i) => (
-            <div key={i} className="px-4 py-2 flex gap-3">
-              <span className="text-neutral-600 font-mono text-xs w-32 shrink-0">{ev.type}</span>
-              <span className="text-neutral-300 truncate" title={describeEvent(ev)}>
+            <div key={i} className="px-4 py-2.5 flex gap-3">
+              <span className="text-slate/50 font-mono text-xs w-32 shrink-0">{ev.type}</span>
+              <span className="text-slate truncate" title={describeEvent(ev)}>
                 {describeEvent(ev)}
               </span>
             </div>
@@ -159,8 +162,8 @@ export default function RunPage() {
 
       {resultJson && (
         <div>
-          <h2 className="text-sm font-medium text-neutral-300 mb-2">Structured result</h2>
-          <pre className="border border-neutral-800 rounded-lg p-4 text-xs overflow-x-auto bg-neutral-900/50">
+          <SectionLabel>Structured result</SectionLabel>
+          <pre className="border border-panel-border rounded-2xl p-4 text-xs overflow-x-auto bg-panel text-slate">
             {JSON.stringify(resultJson, null, 2)}
           </pre>
         </div>
@@ -168,14 +171,14 @@ export default function RunPage() {
 
       {evidence.length > 0 && (
         <div>
-          <h2 className="text-sm font-medium text-neutral-300 mb-2">Evidence</h2>
+          <SectionLabel>Evidence</SectionLabel>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {evidence.map((f) => (
               <a key={f.url} href={f.url} target="_blank" rel="noreferrer">
                 <img
                   src={f.url}
                   alt={f.name}
-                  className="rounded border border-neutral-800 w-full object-cover"
+                  className="rounded-xl border border-panel-border w-full object-cover hover:border-brand/50 transition-colors"
                 />
               </a>
             ))}
@@ -185,10 +188,10 @@ export default function RunPage() {
 
       <div className="grid sm:grid-cols-2 gap-6 text-sm">
         <div>
-          <h2 className="text-sm font-medium text-neutral-300 mb-2">Input</h2>
-          <div className="border border-neutral-800 rounded-lg divide-y divide-neutral-800">
+          <SectionLabel>Input</SectionLabel>
+          <div className="border border-panel-border rounded-2xl divide-y divide-panel-border bg-panel">
             {rows.map((r: Record<string, string>, i: number) => (
-              <div key={i} className="px-4 py-2 text-xs text-neutral-400">
+              <div key={i} className="px-4 py-2.5 text-xs text-slate">
                 {Object.entries(r)
                   .map(([k, v]) => `${k}: ${v}`)
                   .join("  ·  ")}
@@ -197,20 +200,28 @@ export default function RunPage() {
           </div>
         </div>
         <div>
-          <h2 className="text-sm font-medium text-neutral-300 mb-2">Cost</h2>
-          <div className="border border-neutral-800 rounded-lg px-4 py-3 text-xs text-neutral-400">
+          <SectionLabel>Cost</SectionLabel>
+          <div className="border border-panel-border rounded-2xl px-4 py-3.5 text-xs text-slate bg-panel">
             {cost ? (
               <>
-                {cost.usd != null && <div>${cost.usd.toFixed(3)} USD</div>}
-                {cost.steps != null && <div>{cost.steps} steps</div>}
+                {cost.usd != null && <div className="text-brand font-mono">${cost.usd.toFixed(3)} USD</div>}
+                {cost.steps != null && <div className="mt-1">{cost.steps} steps</div>}
               </>
             ) : (
-              <div className="text-neutral-600">Not reported for this run.</div>
+              <div className="text-slate/50">Not reported for this run.</div>
             )}
           </div>
         </div>
       </div>
     </div>
+  );
+}
+
+function SectionLabel({ children }: { children: ReactNode }) {
+  return (
+    <h2 className="font-mono text-xs uppercase tracking-widest text-slate/70 mb-2.5">
+      {children}
+    </h2>
   );
 }
 

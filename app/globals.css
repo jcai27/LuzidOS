@@ -1,1 +1,30 @@
 @import "tailwindcss";
+
+/* Luzid brand tokens, pulled from luzid.io's own stylesheet
+   (--color-luzid-brand/deep/light/slate) so this tool reads as part of
+   the same product family rather than a generic dashboard template. */
+:root {
+  --color-brand: #e74b2e;
+  --color-brand-hover: #d43f24;
+  --color-ink: #121c24;
+  --color-panel: #182430;
+  --color-panel-border: #26333f;
+  --color-light: #e4e5e9;
+  --color-slate: #c8d3dd;
+}
+
+@theme inline {
+  --color-brand: var(--color-brand);
+  --color-brand-hover: var(--color-brand-hover);
+  --color-ink: var(--color-ink);
+  --color-panel: var(--color-panel);
+  --color-panel-border: var(--color-panel-border);
+  --color-light: var(--color-light);
+  --color-slate: var(--color-slate);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--color-ink);
+}
