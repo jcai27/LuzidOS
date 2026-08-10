@@ -12,20 +12,40 @@ export function buildNamespaceTag(runId: string): string {
 }
 
 /**
+ * Task prompts embed the live SAP password (see lib/agents/*.ts — the real
+ * Browser Use v4 API has no secrets/credential-injection mechanism, so this
+ * is the only way to get the agent logged in). Only ever persist this
+ * redacted form; the real prompt should live only in memory for the single
+ * call that launches the run.
+ */
+export function redactSecrets(text: string, secrets: string[]): string {
+  let redacted = text;
+  for (const secret of secrets) {
+    if (!secret) continue;
+    redacted = redacted.split(secret).join("[REDACTED]");
+  }
+  return redacted;
+}
+
+/**
  * Creates the Browser Use run for an already-inserted "queued" row. This is
  * a single fast API call (unlike the old design, nothing here waits for the
  * agent to finish) so it can run synchronously inside the POST handler that
  * launches a run — no background process required, which matters once this
  * is deployed as short-lived serverless functions.
+ *
+ * Takes the real task prompt (with live credentials embedded — see
+ * lib/agents/*.ts and NEXT.md) as a parameter rather than reading it back
+ * from the DB: the row only ever stores a redacted copy, so the real
+ * secret exists in memory just long enough to make this one call.
  */
-export async function launchRun(runId: string): Promise<void> {
-  const row = await getRun(runId);
-  if (!row || !row.task_prompt) return;
-
+export async function launchRun(
+  runId: string,
+  taskPrompt: string,
+  agentType: AgentType
+): Promise<void> {
   const client = getBrowserUseClient();
-  const sapHost = safeHostname(process.env.SAP_URL ?? "");
-  const sapUser = process.env.SAP_USERNAME ?? "";
-  const sapPass = process.env.SAP_PASSWORD ?? "";
+  const maxCostUsd = Number(process.env.RUN_MAX_COST_USD ?? "") || undefined;
 
   try {
     const {
@@ -33,12 +53,10 @@ export async function launchRun(runId: string): Promise<void> {
       sessionId,
       workspaceId,
     } = await client.createRun({
-      task: row.task_prompt,
+      task: taskPrompt,
       model: process.env.BROWSER_USE_MODEL,
-      secrets: sapHost ? { [sapHost]: `${sapUser}:${sapPass}` } : undefined,
-      allowedDomains: sapHost ? [sapHost] : undefined,
-      maxSteps: 40,
-      stubAgentType: row.agent_type,
+      maxCostUsd,
+      stubAgentType: agentType,
     });
 
     await updateRun(runId, {
@@ -53,6 +71,19 @@ export async function launchRun(runId: string): Promise<void> {
       error: err instanceof Error ? err.message : String(err),
     });
   }
+}
+
+/** Hard-cancels the Browser Use run itself (not just our own DB bookkeeping) — stops billing immediately, per the real /runs/{id}/cancel endpoint. */
+export async function cancelRun(runId: string): Promise<void> {
+  const row = await getRun(runId);
+  if (row?.browser_use_run_id) {
+    try {
+      await getBrowserUseClient().cancelRun(row.browser_use_run_id);
+    } catch {
+      // best-effort: DB status still flips to cancelled below regardless
+    }
+  }
+  await updateRun(runId, { status: "cancelled", summary: "Stopped by user." });
 }
 
 /**
@@ -223,12 +254,4 @@ async function saveEvidence(
 function path_basename(p: string): string {
   const parts = p.split("/");
   return parts[parts.length - 1] || p;
-}
-
-function safeHostname(url: string): string | null {
-  try {
-    return new URL(url).hostname;
-  } catch {
-    return null;
-  }
 }

@@ -23,15 +23,29 @@ export const configurationAgent: AgentDefinition<ConfigurationResult> = {
 
     return `
 You are testing the SAP S/4HANA Cloud system at ${creds.url}.
-Log in with the injected credentials for this domain.
+Log in with username "${creds.username}" and password "${creds.password}".
+
+Interact the way a person would: click and type on the actual page elements. Avoid writing
+JavaScript/DOM-injection to fill fields or trigger clicks — if a script-driven click causes a page
+navigation (e.g. submitting the login form), the page's execution context can be destroyed mid-script
+and the call can hang indefinitely. If you do need to click something that navigates, do it as its own
+action and confirm the new page has loaded before doing anything else.
 
 Then:
-1. Navigate to the logged-in user's profile / personalization settings screen (e.g. user avatar menu -> "Settings" or "Personalize My Home Page").
-2. Apply the following change(s):
+1. Click the user avatar icon in the top-right corner of the screen, then click "Settings" in the
+   dropdown menu. This opens a "My Home Settings" dialog with a "Layout" section showing toggleable
+   visibility eye-icons for several home-page sections (e.g. To-Dos, News, Pages, Apps, Insights
+   Tiles, Insights Cards). If the dialog doesn't open on the Layout tab by default, click "Layout"
+   in the left-hand list.
+2. Apply the following change(s) by clicking the eye-icon toggle next to the named section so its
+   visibility matches the requested value ("Hidden"/"Off" = toggle so the eye is not the filled/blue
+   state; "Visible"/"On" = toggle so it is):
 ${changes}
-3. Save the change(s).
-4. Reload or reopen the settings screen and read back the value(s) to verify they actually persisted. Do not trust a save confirmation alone.
-5. Take a screenshot of the settings screen showing the new value(s) after reload, and save it to your workspace as "after.png".
+3. Click "Close" to close the dialog.
+4. Reopen the same dialog (avatar icon -> "Settings") and check the same toggle(s) to verify the new
+   state actually persisted. Do not trust the act of toggling alone — you must reopen and re-observe.
+5. Take a screenshot of the reopened dialog showing the persisted state, and save it to your
+   workspace as "after.png".
 6. If a popup, cookie banner, "what's new" tour, or session prompt appears at any point, dismiss it and continue.
 7. Only touch the setting(s) listed above, for this one logged-in user. Do NOT change any global system settings or any other user's settings.
 8. If you touch any free-text note/reference field, prefix it with "${namespaceTag}".

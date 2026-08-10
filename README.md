@@ -33,11 +33,12 @@ Copy `.env.example` to `.env.local` and fill in:
 | `DATABASE_URL` | Postgres connection string (run history) |
 | `BLOB_READ_WRITE_TOKEN` | Vercel Blob token (evidence screenshots) |
 | `BROWSER_USE_API_KEY` | Browser Use Cloud API key |
-| `BROWSER_USE_MODEL` | Optional; leave unset to use Browser Use's default model |
+| `BROWSER_USE_MODEL` | Optional; must be one of the enum values in the live `GET /api/v4/openapi.json`; leave unset for Browser Use's default |
+| `RUN_MAX_COST_USD` | Optional real, API-enforced per-run cost cap (`RunCreateRequest.maxCostUsd`) |
 | `SAP_URL` | SAP sandbox URL, e.g. `https://myXXXXXX.s4hana.cloud.sap/ui?sap-client=100` |
-| `SAP_USERNAME` / `SAP_PASSWORD` | SAP login. Never sent to the LLM — passed via Browser Use's domain-scoped `secrets` param |
+| `SAP_USERNAME` / `SAP_PASSWORD` | SAP login. Embedded directly in the task prompt sent to Browser Use — see "Key decisions" below, this wasn't the original design |
 | `BROWSER_USE_SPEND_CAP_USD` | Soft, client-side-only spend awareness shown in the History view |
-| `RUN_TIMEOUT_SECONDS` | Wall-clock timeout enforced by the poller (default 300s) |
+| `RUN_TIMEOUT_SECONDS` | Wall-clock timeout enforced by the poller (default 600s — real multi-dialog SAP flows took 5-10 min) |
 | `BROWSER_USE_STUB` | `true` = use a zero-cost offline fake Browser Use client (fixed responses, ~6s fake runs). `false` = real API |
 
 If you provisioned Postgres/Blob via the Vercel CLI as above and linked the project (`vercel link`),
@@ -132,8 +133,18 @@ workspace, re-uploading them to Vercel Blob before their presigned URLs expire (
   JSON-schema parameter — the task prompt explicitly requests JSON, and the raw string result is
   parsed and validated client-side (`resultSchema.safeParse`) before being trusted.
 
-- **Credentials never reach the LLM.** SAP login is passed through Browser Use's domain-scoped
-  `secrets` param, matched only against `allowed_domains`, not interpolated into the task prompt.
+- **Credentials are embedded in the task prompt — not what I originally designed, but what the real
+  API supports.** Browser Use's own docs describe a domain-scoped `secrets` request param that keeps
+  credentials out of the LLM's prompt; I designed around that. The real v4 `RunCreateRequest` schema
+  (confirmed against the live `GET /api/v4/openapi.json`, not just docs) has no such field — sending
+  `secrets`/`allowed_domains` gets a 422 "Extra inputs are not permitted". There's no credential-vault
+  endpoint either (`/agentcard/wallets` is a payment wallet, not a secrets store). So the task prompt
+  states the username/password directly. Two things limit the blast radius: this is a disposable
+  shared demo tenant with rotating credentials, not a production account, and the app itself never
+  persists the real prompt — `lib/runLifecycle.ts#redactSecrets` strips the password before the row
+  is written to Postgres, so it's in memory only for the single call that launches the run. See
+  NEXT.md for what I'd build instead (Browser Use's `browserSettings.profileId` can reuse a
+  pre-authenticated session, meaning only a one-time bootstrap run would ever need the password).
 
 - **Verdict is separate from run status.** `status` (queued/running/completed/failed/timed_out/
   cancelled) is the technical outcome of the Browser Use run; `verdict` (pass/fail) is the business
@@ -151,10 +162,19 @@ workspace, re-uploading them to Vercel Blob before their presigned URLs expire (
   names/shapes I'd already confirmed by calibration-testing the real API on a cheap page. Real spend
   only went toward calibration and the two actual scenario runs.
 
-- **Soft stop, not a hard cancel.** The Browser Use v4 API doesn't document a cancel endpoint, so
-  Stop marks the run `cancelled` in our own DB; `advanceRun()` checks for that before doing any
-  further work, so the next tick (≤2s later) stops polling and the UI settles — Browser Use's side
-  keeps running to completion, but the app no longer reflects it.
+- **Stop is a real cancel.** `POST /runs/{id}/cancel` exists on the real API (again, not obvious from
+  the docs I started with — found it by reading the OpenAPI schema directly) and is idempotent, so
+  `app/api/runs/[id]/stop` calls it directly: it stops billing immediately, not just our own polling.
+
+- **Verified the real API schema directly, not just the docs.** Docs and the real `RunCreateRequest`/
+  event shapes disagreed in several places (invented `secrets`/`allowed_domains`/`max_steps` fields;
+  `sessionId` not `session_id`; event timestamp field is `ts` not `timestamp`; `totalCostUsd` comes
+  back as a string). `lib/browserUse.ts` is written against `GET /api/v4/openapi.json` plus live
+  calibration calls, not the docs summaries, after those mismatches caused real launch failures. That
+  same OpenAPI check caught a second, sneakier bug live: `GET /runs/{id}/events` paginates at 50
+  (`hasMore`/`nextAfter` in the response), which `getEvents` originally ignored — a run with more than
+  50 events would look permanently frozen in the UI and to the timeout logic, forever re-fetching page
+  one. A real run against SAP hit exactly that (221 real events, stuck showing 50) before the fix.
 
 ---
 

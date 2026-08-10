@@ -5,9 +5,7 @@ const API_BASE = "https://api.browser-use.com/api/v4";
 export interface CreateRunParams {
   task: string;
   model?: string;
-  secrets?: Record<string, string>;
-  allowedDomains?: string[];
-  maxSteps?: number;
+  maxCostUsd?: number;
   sessionId?: string;
   /** Only consumed by the stub client; never sent to the real API. */
   stubAgentType?: AgentType;
@@ -44,6 +42,7 @@ export interface BrowserUseClient {
   getStatus(runId: string): Promise<string>;
   getEvents(runId: string, after?: string): Promise<BrowserUseEvent[]>;
   getWorkspaceFiles(workspaceId: string): Promise<WorkspaceFile[]>;
+  cancelRun(runId: string): Promise<void>;
 }
 
 function apiKey(): string {
@@ -71,19 +70,20 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 /**
  * Real client against the live Browser Use Cloud v4 API
  * (https://api.browser-use.com/api/v4). Field names below were verified
- * against live responses, not just docs (the API is camelCase; totalCostUsd
- * comes back as a string; workspace file URLs are presigned S3 links that
- * expire in 60s so must be fetched immediately after listing).
+ * against the API's actual OpenAPI schema (GET /api/v4/openapi.json) and
+ * live responses, not just docs — the docs described a `secrets` /
+ * `allowed_domains` / `max_steps` request shape that the real
+ * RunCreateRequest schema rejects outright (422 "Extra inputs are not
+ * permitted"). There is no credential-injection mechanism on this endpoint
+ * at all; see lib/agents/* and NEXT.md for how that's handled instead.
  */
 export const realBrowserUseClient: BrowserUseClient = {
   async createRun(params) {
     const body: Record<string, unknown> = {
       task: params.task,
       model: params.model,
-      secrets: params.secrets,
-      allowed_domains: params.allowedDomains,
-      max_steps: params.maxSteps,
-      session_id: params.sessionId,
+      maxCostUsd: params.maxCostUsd,
+      sessionId: params.sessionId,
     };
     const data = await request<{ id: string; sessionId?: string; workspaceId?: string }>(
       "/runs",
@@ -122,9 +122,23 @@ export const realBrowserUseClient: BrowserUseClient = {
   },
 
   async getEvents(runId, after) {
-    const qs = after ? `?after=${encodeURIComponent(after)}` : "";
-    const data = await request<{ events: BrowserUseEvent[] }>(`/runs/${runId}/events${qs}`);
-    return data.events ?? [];
+    // The endpoint paginates at 50 events (response carries hasMore/nextAfter) — a run with
+    // more activity than that would otherwise silently look frozen forever, since every tick
+    // would keep re-fetching only the first page. Follow the cursor until it's exhausted.
+    const events: BrowserUseEvent[] = [];
+    let cursor = after;
+    for (;;) {
+      const qs = cursor ? `?after=${encodeURIComponent(cursor)}` : "";
+      const data = await request<{
+        events: BrowserUseEvent[];
+        hasMore?: boolean;
+        nextAfter?: string;
+      }>(`/runs/${runId}/events${qs}`);
+      events.push(...(data.events ?? []));
+      if (!data.hasMore || !data.nextAfter) break;
+      cursor = data.nextAfter;
+    }
+    return events;
   },
 
   async getWorkspaceFiles(workspaceId) {
@@ -132,5 +146,9 @@ export const realBrowserUseClient: BrowserUseClient = {
       `/workspaces/${workspaceId}/files?includeUrls=true`
     );
     return data.files ?? [];
+  },
+
+  async cancelRun(runId) {
+    await request(`/runs/${runId}/cancel`, { method: "POST" });
   },
 };

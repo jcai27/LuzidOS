@@ -15,7 +15,7 @@ const AGENTS: {
     type: "configuration",
     title: "Configuration Agent",
     description:
-      "Applies a configuration change (e.g. date format) on the provided user's SAP profile and verifies it took effect.",
+      "Applies a personalization change (e.g. a home-page section's visibility) on the provided user's SAP profile and verifies it took effect.",
     sample: "/samples/configuration-sample.xlsx",
     columns: "Setting | NewValue",
   },

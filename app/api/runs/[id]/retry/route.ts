@@ -3,7 +3,7 @@ import { randomUUID } from "crypto";
 import { getRun, insertRun } from "@/lib/db";
 import type { Row } from "@/lib/spreadsheet";
 import { getAgentDefinition } from "@/lib/agents";
-import { launchRun, buildNamespaceTag } from "@/lib/runLifecycle";
+import { launchRun, buildNamespaceTag, redactSecrets } from "@/lib/runLifecycle";
 
 export async function POST(
   _req: NextRequest,
@@ -47,7 +47,7 @@ export async function POST(
     browser_use_session_id: null,
     browser_use_workspace_id: null,
     live_view_url: null,
-    task_prompt: taskPrompt,
+    task_prompt: redactSecrets(taskPrompt, [sapPass]),
     result_raw: null,
     result_json: null,
     verdict: null,
@@ -59,7 +59,7 @@ export async function POST(
     retry_of: original.id,
   });
 
-  await launchRun(runId);
+  await launchRun(runId, taskPrompt, original.agent_type);
 
   return NextResponse.json({ id: runId }, { status: 201 });
 }

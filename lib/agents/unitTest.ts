@@ -24,18 +24,35 @@ export const unitTestAgent: AgentDefinition<UnitTestResult> = {
 
     return `
 You are executing this test case against the SAP S/4HANA Cloud system at ${creds.url}: "${testCase}".
-Log in with the injected credentials for this domain.
+Log in with username "${creds.username}" and password "${creds.password}".
+
+Interact the way a person would: click and type on the actual page elements. Avoid writing
+JavaScript/DOM-injection to fill fields or trigger clicks — if a script-driven click causes a page
+navigation (e.g. submitting the login form), the page's execution context can be destroyed mid-script
+and the call can hang indefinitely. If you do need to click something that navigates, do it as its own
+action and confirm the new page has loaded before doing anything else.
 
 Steps:
-1. Navigate to the sales order creation screen (e.g. app "Create Sales Order" / VA01-equivalent Fiori app).
-2. Create a new sales order using these values:
+1. Use the search bar at the top of the screen to search "Create Sales Order". Open the result
+   labeled with technical name "VA01" (a plain "Create Sales Orders" app) — not the "Intercompany"
+   variant.
+2. On the initial screen, enter Order Type "OR" (Standard Order). If it's rejected, click the
+   value-help icon next to the field, search, and pick any standard/order-type entry that looks
+   equivalent (e.g. containing "Standard Order").
+3. Fill in the Organizational Data section and any other fields on this screen using these values:
 ${fieldLines}
-3. In the purchase order / customer reference text field, if present, enter "${namespaceTag}" so this order is identifiable as test data.
-4. Submit / save the order.
-5. Observe the result. Expected result: ${expected}.
-6. Take a screenshot of the final result screen (the order confirmation, or the error/validation message if it failed) and save it to your workspace as "confirmation.png".
-7. If a popup, cookie banner, "what's new" tour, incomplete-field warning, or session prompt appears at any point, handle it (dismiss, or fill the missing required field with a sensible default) and continue.
-8. Take note of the exact order number SAP returns, if any.
+   If any of these values is rejected as invalid for this system, use that field's value-help (F4 /
+   the icon next to the field) to pick any valid value of the same kind so you can proceed, and
+   mention the substitution in your final "reason".
+4. Click "Continue" to proceed to the order entry screen.
+5. Fill in the remaining order details (e.g. Sold-To Party, PO/customer reference, line item Material
+   and Quantity) using the values above. In the purchase order / customer reference text field, if
+   present, enter "${namespaceTag}" so this order is identifiable as test data.
+6. Submit / save the order.
+7. Observe the result. Expected result: ${expected}.
+8. Take a screenshot of the final result screen (the order confirmation, or the error/validation message if it failed) and save it to your workspace as "confirmation.png".
+9. If a popup, cookie banner, "what's new" tour, incomplete-field warning, or session prompt appears at any point, handle it (dismiss, or fill the missing required field with a sensible default) and continue.
+10. Take note of the exact order number SAP returns, if any.
 
 When finished, reply with ONLY a JSON object, no markdown fences, no other text, of this exact shape:
 {"pass": boolean, "orderNumber": string|null, "reason": string}

@@ -3,7 +3,7 @@ import { randomUUID } from "crypto";
 import { insertRun, listRuns, type AgentType } from "@/lib/db";
 import { parseSpreadsheet } from "@/lib/spreadsheet";
 import { getAgentDefinition } from "@/lib/agents";
-import { launchRun, buildNamespaceTag } from "@/lib/runLifecycle";
+import { launchRun, buildNamespaceTag, redactSecrets } from "@/lib/runLifecycle";
 
 export async function GET() {
   return NextResponse.json({ runs: await listRuns() });
@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
     browser_use_session_id: null,
     browser_use_workspace_id: null,
     live_view_url: null,
-    task_prompt: taskPrompt,
+    task_prompt: redactSecrets(taskPrompt, [sapPass]),
     result_raw: null,
     result_json: null,
     verdict: null,
@@ -84,7 +84,8 @@ export async function POST(req: NextRequest) {
   });
 
   // Single fast Browser Use API call — safe to await inline, no background process needed.
-  await launchRun(runId);
+  // The real (unredacted) prompt is passed directly and never persisted.
+  await launchRun(runId, taskPrompt, agentType);
 
   return NextResponse.json({ id: runId }, { status: 201 });
 }

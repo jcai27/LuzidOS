@@ -124,4 +124,8 @@ export const stubBrowserUseClient: BrowserUseClient = {
   async getWorkspaceFiles() {
     return [];
   },
+
+  async cancelRun() {
+    // no-op: stub runs finish in a few seconds anyway
+  },
 };

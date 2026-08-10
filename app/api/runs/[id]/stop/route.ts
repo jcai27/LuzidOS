@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getRun, updateRun } from "@/lib/db";
+import { getRun } from "@/lib/db";
+import { cancelRun } from "@/lib/runLifecycle";
 
 const TERMINAL = new Set(["completed", "failed", "cancelled", "timed_out"]);
 
 /**
- * Soft stop: the Browser Use v4 API doesn't document a cancel endpoint, so
- * this marks the run cancelled in our own DB. advanceRun() checks for that
- * status before doing any further work, so the next tick (at most ~2s away)
- * stops polling Browser Use and the UI settles immediately.
+ * Hard-cancels the Browser Use run itself via POST /runs/{id}/cancel (stops
+ * billing immediately) and marks it cancelled in our DB. advanceRun() also
+ * checks our DB status before doing further work, so even if the cancel
+ * call fails the next tick (at most ~2s away) stops polling regardless.
  */
 export async function POST(
   _req: NextRequest,
@@ -19,9 +20,6 @@ export async function POST(
   if (TERMINAL.has(run.status)) {
     return NextResponse.json({ error: `run already ${run.status}` }, { status: 409 });
   }
-  await updateRun(id, {
-    status: "cancelled",
-    summary: "Stopped by user.",
-  });
+  await cancelRun(id);
   return NextResponse.json({ ok: true });
 }
