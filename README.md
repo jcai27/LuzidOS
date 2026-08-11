@@ -34,12 +34,12 @@ Copy `.env.example` to `.env.local` and fill in:
 | `BLOB_READ_WRITE_TOKEN` | Vercel Blob token (evidence screenshots) |
 | `BROWSER_USE_API_KEY` | Browser Use Cloud API key |
 | `BROWSER_USE_MODEL` | Optional; must be one of the enum values in the live `GET /api/v4/openapi.json`; leave unset for Browser Use's default |
-| `RUN_MAX_COST_USD` | Optional real, API-enforced per-run cost cap (`RunCreateRequest.maxCostUsd`) |
+| `RUN_MAX_COST_USD` | Optional real, API-enforced per-run cost cap (`RunCreateRequest.maxCostUsd`); set to `2` in production as a floor against a runaway single run |
 | `SAP_URL` | SAP sandbox URL, e.g. `https://myXXXXXX.s4hana.cloud.sap/ui?sap-client=100` |
 | `SAP_USERNAME` / `SAP_PASSWORD` | SAP login. Embedded directly in the task prompt sent to Browser Use — see "Key decisions" below, this wasn't the original design |
 | `BROWSER_USE_SPEND_CAP_USD` | Soft, client-side-only spend awareness shown in the History view |
 | `RUN_TIMEOUT_SECONDS` | Wall-clock timeout enforced by the poller (default 600s — real multi-dialog SAP flows took 5-10 min) |
-| `BROWSER_USE_STUB` | `true` = use a zero-cost offline fake Browser Use client (fixed responses, ~6s fake runs). `false` = real API |
+| `BROWSER_USE_STUB` | `true` = use a zero-cost offline fake Browser Use client (fixed responses, ~6s fake runs). `false` = real API — this is what's set in production; the live URL runs for real against the real SAP sandbox for anyone who launches a run |
 
 If you provisioned Postgres/Blob via the Vercel CLI as above and linked the project (`vercel link`),
 `vercel env pull .env.local` fetches those two automatically.

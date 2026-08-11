@@ -94,9 +94,11 @@ neighbors:
   agent already reopens its settings dialog to verify persistence — capturing a screenshot at that
   reopen *and* one before, or one per major step for the unit-test agent, would make PASS/FAIL results
   easier to audit at a glance.
-- **Basic auth on the deployed app.** It's currently open to anyone with the URL, and now that
-  credentials are embedded in task prompts rather than a separate secrets channel, limiting who can
-  even trigger a run matters more than it did before.
+- **Basic auth on the deployed app.** The live URL runs for real against the real SAP sandbox with no
+  auth in front of it — a deliberate choice ("I want everyone to be able to use it") over the safer
+  default I'd shipped first (stub mode in production). `RUN_MAX_COST_USD` (set to $2) caps any single
+  run's damage, but there's no limit on how many runs someone could launch back to back. Auth, or at
+  minimum rate-limiting `POST /api/runs`, is the natural next step if this stays public.
 - **Enforce the aggregate spend cap**, not just the per-run one `RUN_MAX_COST_USD` already covers.
 
 ## What I'd change about how I built it
