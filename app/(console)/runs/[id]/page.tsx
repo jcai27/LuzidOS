@@ -3,7 +3,11 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useParams, useRouter } from "next/navigation";
 import type { RunRow } from "@/lib/db";
-import { AGENT_LABEL, STATUS_COLOR, STATUS_LABEL, formatMs, formatTime } from "@/lib/format";
+import { AGENT_LABEL, STATUS_MESSAGE, formatMs, formatTime, friendlyError } from "@/lib/format";
+import StepTimeline, { type BUEvent } from "../../_components/StepTimeline";
+import ResultSummary from "../../_components/ResultSummary";
+import RowTable from "../../_components/RowTable";
+import { CheckIcon, CrossIcon, SpinnerIcon } from "../../_components/icons";
 
 const TERMINAL = new Set(["completed", "failed", "cancelled", "timed_out"]);
 const TICK_MS = 2000;
@@ -12,12 +16,6 @@ interface AgentStats {
   count: number;
   avgDurationMs: number | null;
   avgCostUsd: number | null;
-}
-
-interface BUEvent {
-  type: string;
-  data: Record<string, unknown>;
-  ts?: string;
 }
 
 interface EvidenceFile {
@@ -75,7 +73,7 @@ export default function RunPage() {
   }, [id]);
 
   if (!run) {
-    return <div className="max-w-4xl mx-auto px-6 py-10 text-slate">Loading…</div>;
+    return <div className="max-w-3xl mx-auto px-6 py-10 text-slate">Loading…</div>;
   }
 
   const events: BUEvent[] = run.events_json ? JSON.parse(run.events_json) : [];
@@ -101,33 +99,15 @@ export default function RunPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-12 flex flex-col gap-7">
+    <div className="max-w-3xl mx-auto px-6 py-12 flex flex-col gap-7">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="font-mono text-xs uppercase tracking-widest text-brand mb-2">
-            {AGENT_LABEL[run.agent_type]}
-          </p>
-          <h1 className="text-2xl font-semibold tracking-tight">{run.namespace_tag}</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{AGENT_LABEL[run.agent_type]}</h1>
           <p className="text-xs text-slate/70 mt-1.5">
-            launched {formatTime(run.created_at)} · input: {run.input_filename}
+            started {formatTime(run.created_at)} · from {run.input_filename} · {run.namespace_tag}
           </p>
-          {isRunning && (
-            <p className="text-xs text-brand font-mono mt-1.5">
-              running for {formatMs(now - run.created_at)}
-              {stats && stats.count > 0 && stats.avgDurationMs != null && (
-                <span className="text-slate/60">
-                  {" "}
-                  · past runs typically take ~{formatMs(stats.avgDurationMs)}
-                  {stats.avgCostUsd != null ? ` and cost ~$${stats.avgCostUsd.toFixed(3)}` : ""}
-                </span>
-              )}
-            </p>
-          )}
         </div>
-        <div className="flex items-center gap-2">
-          <span className={`text-xs px-2.5 py-1 rounded-md font-mono ${STATUS_COLOR[run.status]}`}>
-            {STATUS_LABEL[run.status] ?? run.status}
-          </span>
+        <div className="flex items-center gap-2 shrink-0">
           {isRunning && (
             <button
               onClick={stop}
@@ -143,34 +123,17 @@ export default function RunPage() {
               disabled={retrying}
               className="text-xs px-3 py-1.5 rounded-lg border border-panel-border hover:border-slate/40 hover:text-white disabled:opacity-50 transition-colors"
             >
-              {retrying ? "Retrying…" : "Retry"}
+              {retrying ? "Starting…" : "Try again"}
             </button>
           )}
         </div>
       </div>
 
-      {run.verdict && (
-        <div
-          className={`rounded-2xl px-5 py-4 text-sm ${
-            run.verdict === "pass"
-              ? "bg-emerald-500/10 border border-emerald-500/30 text-emerald-300"
-              : "bg-red-500/10 border border-red-500/30 text-red-300"
-          }`}
-        >
-          <span className="font-mono font-semibold uppercase tracking-widest">{run.verdict}</span>
-          {run.summary && <span className="ml-2 text-white/90">{run.summary}</span>}
-        </div>
-      )}
-
-      {run.error && !run.verdict && (
-        <div className="rounded-2xl px-5 py-4 text-sm bg-red-500/10 border border-red-500/30 text-red-300">
-          {run.error}
-        </div>
-      )}
+      <StatusBanner run={run} now={now} stats={stats} />
 
       {run.live_view_url && isRunning && (
         <div>
-          <SectionLabel>Live view</SectionLabel>
+          <SectionLabel>Watch it happen</SectionLabel>
           <iframe
             src={run.live_view_url}
             className="w-full aspect-video rounded-2xl border border-panel-border"
@@ -178,36 +141,14 @@ export default function RunPage() {
         </div>
       )}
 
-      <div>
-        <SectionLabel>Steps</SectionLabel>
-        <div className="border border-panel-border rounded-2xl divide-y divide-panel-border text-sm max-h-96 overflow-y-auto bg-panel">
-          {events.length === 0 && (
-            <div className="px-4 py-3 text-slate/70">Waiting for the agent to start…</div>
-          )}
-          {events.filter(shouldShowEvent).map((ev, i) => (
-            <div key={i} className="px-4 py-2.5 flex gap-3">
-              <span className="text-slate/50 font-mono text-xs w-32 shrink-0">{ev.type}</span>
-              <span className="text-slate truncate" title={describeEvent(ev)}>
-                {describeEvent(ev)}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
+      <StepTimeline events={events} isRunning={isRunning} />
 
-      {resultJson && (
-        <div>
-          <SectionLabel>Structured result</SectionLabel>
-          <pre className="border border-panel-border rounded-2xl p-4 text-xs overflow-x-auto bg-panel text-slate">
-            {JSON.stringify(resultJson, null, 2)}
-          </pre>
-        </div>
-      )}
+      {resultJson && <ResultSummary result={resultJson} />}
 
       {evidence.length > 0 && (
         <div>
-          <SectionLabel>Evidence</SectionLabel>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <SectionLabel>Screenshot proof</SectionLabel>
+          <div className="grid sm:grid-cols-2 gap-3">
             {evidence.map((f) => (
               <a key={f.url} href={f.url} target="_blank" rel="noreferrer">
                 <img
@@ -223,30 +164,99 @@ export default function RunPage() {
 
       <div className="grid sm:grid-cols-2 gap-6 text-sm">
         <div>
-          <SectionLabel>Input</SectionLabel>
-          <div className="border border-panel-border rounded-2xl divide-y divide-panel-border bg-panel">
-            {rows.map((r: Record<string, string>, i: number) => (
-              <div key={i} className="px-4 py-2.5 text-xs text-slate">
-                {Object.entries(r)
-                  .map(([k, v]) => `${k}: ${v}`)
-                  .join("  ·  ")}
-              </div>
-            ))}
-          </div>
+          <SectionLabel>What we tested</SectionLabel>
+          <RowTable rows={rows} />
         </div>
         <div>
-          <SectionLabel>Cost</SectionLabel>
+          <SectionLabel>Time &amp; cost</SectionLabel>
           <div className="border border-panel-border rounded-2xl px-4 py-3.5 text-xs text-slate bg-panel">
+            {isTerminal && (
+              <div className="text-white mb-1">{formatMs(run.updated_at - run.created_at)} total</div>
+            )}
             {cost ? (
               <>
                 {cost.usd != null && <div className="text-brand font-mono">${cost.usd.toFixed(3)} USD</div>}
-                {cost.steps != null && <div className="mt-1">{cost.steps} steps</div>}
+                {cost.steps != null && <div className="mt-1">{cost.steps} steps taken</div>}
               </>
             ) : (
-              <div className="text-slate/50">Not reported for this run.</div>
+              <div className="text-slate/50">Cost not reported for this run.</div>
             )}
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function StatusBanner({
+  run,
+  now,
+  stats,
+}: {
+  run: RunRow;
+  now: number;
+  stats: AgentStats | null;
+}) {
+  if (run.verdict) {
+    const pass = run.verdict === "pass";
+    return (
+      <div
+        className={`rounded-2xl px-6 py-5 flex items-start gap-4 ${
+          pass
+            ? "bg-emerald-500/10 border border-emerald-500/30"
+            : "bg-red-500/10 border border-red-500/30"
+        }`}
+      >
+        {pass ? (
+          <CheckIcon className="text-emerald-400 w-7 h-7 shrink-0" />
+        ) : (
+          <CrossIcon className="text-red-400 w-7 h-7 shrink-0" />
+        )}
+        <div>
+          <p className={`text-lg font-semibold ${pass ? "text-emerald-300" : "text-red-300"}`}>
+            {pass ? "Passed" : "Failed"}
+          </p>
+          {run.summary && <p className="text-sm text-white/80 mt-1 leading-relaxed">{run.summary}</p>}
+        </div>
+      </div>
+    );
+  }
+
+  const isRunning = run.status === "queued" || run.status === "running";
+  const msg = STATUS_MESSAGE[run.status] ?? { headline: run.status, detail: "" };
+
+  return (
+    <div className="rounded-2xl px-6 py-5 flex items-start gap-4 bg-panel border border-panel-border">
+      {isRunning ? (
+        <SpinnerIcon className="text-brand w-7 h-7 shrink-0" />
+      ) : (
+        <CrossIcon className="text-amber-400 w-7 h-7 shrink-0" />
+      )}
+      <div className="flex-1">
+        <p className="text-lg font-semibold text-white">{msg.headline}</p>
+        <p className="text-sm text-slate mt-1">
+          {run.error && !isRunning ? friendlyError(run.error) : msg.detail}
+        </p>
+        {isRunning && (
+          <p className="text-xs text-brand font-mono mt-2">
+            running for {formatMs(now - run.created_at)}
+            {stats && stats.count > 0 && stats.avgDurationMs != null && (
+              <span className="text-slate/60">
+                {" "}
+                · usually takes ~{formatMs(stats.avgDurationMs)}
+                {stats.avgCostUsd != null ? `, ~$${stats.avgCostUsd.toFixed(3)}` : ""}
+              </span>
+            )}
+          </p>
+        )}
+        {run.error && (
+          <details className="mt-2">
+            <summary className="text-xs text-slate/50 cursor-pointer hover:text-slate">
+              Technical details
+            </summary>
+            <p className="text-xs text-slate/50 font-mono mt-1 break-words">{run.error}</p>
+          </details>
+        )}
       </div>
     </div>
   );
@@ -258,62 +268,4 @@ function SectionLabel({ children }: { children: ReactNode }) {
       {children}
     </h2>
   );
-}
-
-const NOISY_EVENT_TYPES = new Set([
-  "llm.request",
-  "worker.started",
-  "worker.session_released",
-  "run.dispatching",
-  "workspace.ready",
-  "core.spawn",
-]);
-
-function shouldShowEvent(ev: BUEvent): boolean {
-  return !NOISY_EVENT_TYPES.has(ev.type);
-}
-
-/** Browser Use's real event stream is a fairly technical agent trace; this maps it to plain language for the live step log. */
-function describeEvent(ev: BUEvent): string {
-  switch (ev.type) {
-    case "run.started":
-    case "run.created":
-      return "Run created";
-    case "run.dispatched":
-      return "Browser session dispatched";
-    case "browser.ready":
-      return "Browser session ready — live view available";
-    case "browser.attached":
-      return "Browser attached";
-    case "browser.released":
-      return "Browser session released";
-    case "run.completed":
-      return "Run completed";
-    case "outputs.promoted":
-      return "Saving outputs";
-    case "state.promoted":
-      return "Saving agent state";
-    case "llm.response":
-      return "Agent step";
-    case "core.event": {
-      const part = ev.data?.part as Record<string, unknown> | undefined;
-      const partType = part?.type as string | undefined;
-      if (partType === "tool") {
-        const state = part?.state as Record<string, unknown> | undefined;
-        const title = (state?.title as string) ?? (part?.tool as string) ?? "tool";
-        return `Using tool: ${title}`;
-      }
-      if (partType === "text") {
-        const text = part?.text as string | undefined;
-        return text ? `Agent output: ${text.slice(0, 140)}` : "Agent output";
-      }
-      if (partType === "step-start") return "Step started";
-      if (partType === "step-finish") return "Step finished";
-      if (partType === "reasoning") return "Agent reasoning";
-      return "Agent activity";
-    }
-    default:
-      if (typeof ev.data?.description === "string") return ev.data.description;
-      return ev.type;
-  }
 }
