@@ -2,10 +2,14 @@ export function formatTime(ms: number): string {
   return new Date(ms).toLocaleString();
 }
 
-export function formatDuration(startMs: number, endMs: number): string {
-  const seconds = Math.round((endMs - startMs) / 1000);
+export function formatMs(ms: number): string {
+  const seconds = Math.round(ms / 1000);
   if (seconds < 60) return `${seconds}s`;
   return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+}
+
+export function formatDuration(startMs: number, endMs: number): string {
+  return formatMs(endMs - startMs);
 }
 
 export const STATUS_LABEL: Record<string, string> = {

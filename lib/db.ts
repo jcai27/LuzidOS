@@ -162,6 +162,47 @@ export async function listRuns(): Promise<RunRow[]> {
   return rows.map(toRunRow);
 }
 
+export interface AgentStats {
+  count: number;
+  avgDurationMs: number | null;
+  avgCostUsd: number | null;
+}
+
+/** Real historical averages for completed runs of one agent type — used to set expectations on the Launch and Run pages instead of a guessed number. */
+export async function getAgentStats(agentType: AgentType): Promise<AgentStats> {
+  await ensureSchema();
+  const sql = getSql();
+  const rows = (await sql`
+    SELECT created_at, updated_at, cost_json FROM runs
+    WHERE agent_type = ${agentType} AND status = 'completed'
+  `) as { created_at: string | number; updated_at: string | number; cost_json: string | null }[];
+
+  if (rows.length === 0) return { count: 0, avgDurationMs: null, avgCostUsd: null };
+
+  let totalDurationMs = 0;
+  let costSum = 0;
+  let costSamples = 0;
+  for (const r of rows) {
+    totalDurationMs += Number(r.updated_at) - Number(r.created_at);
+    if (r.cost_json) {
+      try {
+        const parsed = JSON.parse(r.cost_json);
+        if (typeof parsed?.usd === "number") {
+          costSum += parsed.usd;
+          costSamples++;
+        }
+      } catch {
+        // ignore malformed cost json
+      }
+    }
+  }
+  return {
+    count: rows.length,
+    avgDurationMs: totalDurationMs / rows.length,
+    avgCostUsd: costSamples > 0 ? costSum / costSamples : null,
+  };
+}
+
 export async function totalCostUsd(): Promise<number> {
   await ensureSchema();
   const sql = getSql();

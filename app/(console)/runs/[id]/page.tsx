@@ -3,10 +3,16 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useParams, useRouter } from "next/navigation";
 import type { RunRow } from "@/lib/db";
-import { AGENT_LABEL, STATUS_COLOR, STATUS_LABEL, formatTime } from "@/lib/format";
+import { AGENT_LABEL, STATUS_COLOR, STATUS_LABEL, formatMs, formatTime } from "@/lib/format";
 
 const TERMINAL = new Set(["completed", "failed", "cancelled", "timed_out"]);
 const TICK_MS = 2000;
+
+interface AgentStats {
+  count: number;
+  avgDurationMs: number | null;
+  avgCostUsd: number | null;
+}
 
 interface BUEvent {
   type: string;
@@ -25,6 +31,23 @@ export default function RunPage() {
   const [run, setRun] = useState<RunRow | null>(null);
   const [stopping, setStopping] = useState(false);
   const [retrying, setRetrying] = useState(false);
+  const [stats, setStats] = useState<AgentStats | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    if (!run) return;
+    fetch(`/api/agents/${run.agent_type}/stats`)
+      .then((r) => r.json())
+      .then(setStats)
+      .catch(() => {});
+    // Only need this once we know the agent type, not on every poll tick.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [run?.agent_type]);
 
   // Client-driven polling instead of server push (SSE): each tick is one
   // short request, so liveness doesn't depend on a function staying alive
@@ -88,6 +111,18 @@ export default function RunPage() {
           <p className="text-xs text-slate/70 mt-1.5">
             launched {formatTime(run.created_at)} · input: {run.input_filename}
           </p>
+          {isRunning && (
+            <p className="text-xs text-brand font-mono mt-1.5">
+              running for {formatMs(now - run.created_at)}
+              {stats && stats.count > 0 && stats.avgDurationMs != null && (
+                <span className="text-slate/60">
+                  {" "}
+                  · past runs typically take ~{formatMs(stats.avgDurationMs)}
+                  {stats.avgCostUsd != null ? ` and cost ~$${stats.avgCostUsd.toFixed(3)}` : ""}
+                </span>
+              )}
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <span className={`text-xs px-2.5 py-1 rounded-md font-mono ${STATUS_COLOR[run.status]}`}>

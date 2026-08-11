@@ -176,6 +176,16 @@ workspace, re-uploading them to Vercel Blob before their presigned URLs expire (
   50 events would look permanently frozen in the UI and to the timeout logic, forever re-fetching page
   one. A real run against SAP hit exactly that (221 real events, stuck showing 50) before the fix.
 
+- **Expectations are computed from real history, not guessed.** The Launch page and the Run page both
+  show "past runs typically take ~Xm and cost ~$Y" — pulled live from `GET /api/agents/:type/stats`
+  (`lib/db.ts#getAgentStats`, averaged over completed runs of that agent type), not a hardcoded
+  estimate. It directly answers the "is this stuck?" question a multi-minute run otherwise invites —
+  which came up for real during testing before this existed.
+
+- **Spreadsheets are parsed before they're committed to.** `POST /api/parse` reads the file and returns
+  the rows with no run created and no Browser Use call made, so the Launch page can show exactly what
+  it read and let the user confirm (or pick a different file) before anything spends real API credits.
+
 ---
 
 ## What's fragile / what I'd do next
