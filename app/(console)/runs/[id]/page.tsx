@@ -131,13 +131,20 @@ export default function RunPage() {
 
       <StatusBanner run={run} now={now} stats={stats} />
 
-      {run.live_view_url && isRunning && (
+      {isRunning && (
         <div>
           <SectionLabel>Watch it happen</SectionLabel>
-          <iframe
-            src={run.live_view_url}
-            className="w-full aspect-video rounded-2xl border border-panel-border"
-          />
+          {run.live_view_url ? (
+            <iframe
+              src={run.live_view_url}
+              className="w-full aspect-video rounded-2xl border border-panel-border"
+            />
+          ) : (
+            <div className="w-full aspect-video rounded-2xl border border-panel-border bg-panel flex items-center justify-center gap-2 text-slate/50 text-sm">
+              <SpinnerIcon className="w-4 h-4" />
+              Setting up the browser session…
+            </div>
+          )}
         </div>
       )}
 

@@ -170,7 +170,16 @@ function AgentCard({ agent }: { agent: (typeof AGENTS)[number] }) {
 
       {!rows && (
         <div
+          role="button"
+          tabIndex={0}
+          aria-label={`Choose or drag a spreadsheet to upload for the ${agent.title}`}
           onClick={() => fileInputRef.current?.click()}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              fileInputRef.current?.click();
+            }
+          }}
           onDragOver={(e) => {
             e.preventDefault();
             setDragOver(true);
@@ -182,7 +191,7 @@ function AgentCard({ agent }: { agent: (typeof AGENTS)[number] }) {
             const f = e.dataTransfer.files?.[0];
             if (f) onFileChange(f);
           }}
-          className={`border-2 border-dashed rounded-xl px-4 py-8 text-center cursor-pointer transition-colors ${
+          className={`border-2 border-dashed rounded-xl px-4 py-8 text-center cursor-pointer transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand ${
             dragOver ? "border-brand bg-brand/5" : "border-panel-border hover:border-slate/40"
           }`}
         >

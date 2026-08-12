@@ -1,14 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import type { RunRow } from "@/lib/db";
+import type { AgentType, RunRow } from "@/lib/db";
 import { AGENT_LABEL, STATUS_COLOR, STATUS_LABEL, formatTime } from "@/lib/format";
 import { CheckIcon, CrossIcon } from "../_components/icons";
+
+type OutcomeFilter = "all" | "pass" | "fail" | "in_progress";
+type AgentFilter = "all" | AgentType;
+
+const IN_PROGRESS = new Set(["queued", "running"]);
 
 export default function HistoryPage() {
   const [runs, setRuns] = useState<RunRow[] | null>(null);
   const [stats, setStats] = useState<{ totalUsd: number; capUsd: number | null } | null>(null);
+  const [agentFilter, setAgentFilter] = useState<AgentFilter>("all");
+  const [outcomeFilter, setOutcomeFilter] = useState<OutcomeFilter>("all");
 
   useEffect(() => {
     const load = () => {
@@ -23,6 +30,17 @@ export default function HistoryPage() {
     const interval = setInterval(load, 4000);
     return () => clearInterval(interval);
   }, []);
+
+  const filtered = useMemo(() => {
+    if (!runs) return null;
+    return runs.filter((r) => {
+      if (agentFilter !== "all" && r.agent_type !== agentFilter) return false;
+      if (outcomeFilter === "pass" && r.verdict !== "pass") return false;
+      if (outcomeFilter === "fail" && r.verdict !== "fail") return false;
+      if (outcomeFilter === "in_progress" && !IN_PROGRESS.has(r.status)) return false;
+      return true;
+    });
+  }, [runs, agentFilter, outcomeFilter]);
 
   return (
     <div className="max-w-5xl mx-auto px-6 py-12">
@@ -39,6 +57,31 @@ export default function HistoryPage() {
         )}
       </div>
 
+      {runs && runs.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 mb-5">
+          <FilterGroup
+            value={agentFilter}
+            onChange={setAgentFilter}
+            options={[
+              { value: "all", label: "All agents" },
+              { value: "configuration", label: "Configuration" },
+              { value: "unit_test", label: "Unit Test" },
+            ]}
+          />
+          <span className="text-panel-border">·</span>
+          <FilterGroup
+            value={outcomeFilter}
+            onChange={setOutcomeFilter}
+            options={[
+              { value: "all", label: "All outcomes" },
+              { value: "pass", label: "Passed" },
+              { value: "fail", label: "Failed" },
+              { value: "in_progress", label: "In progress" },
+            ]}
+          />
+        </div>
+      )}
+
       {!runs && <p className="text-slate text-sm">Loading…</p>}
       {runs && runs.length === 0 && (
         <p className="text-slate text-sm">
@@ -49,10 +92,13 @@ export default function HistoryPage() {
           .
         </p>
       )}
+      {filtered && runs && runs.length > 0 && filtered.length === 0 && (
+        <p className="text-slate text-sm">No runs match those filters.</p>
+      )}
 
-      {runs && runs.length > 0 && (
+      {filtered && filtered.length > 0 && (
         <div className="border border-panel-border rounded-2xl divide-y divide-panel-border bg-panel overflow-hidden">
-          {runs.map((run) => (
+          {filtered.map((run) => (
             <Link
               key={run.id}
               href={`/runs/${run.id}`}
@@ -80,6 +126,34 @@ export default function HistoryPage() {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function FilterGroup<T extends string>({
+  value,
+  onChange,
+  options,
+}: {
+  value: T;
+  onChange: (v: T) => void;
+  options: { value: T; label: string }[];
+}) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {options.map((opt) => (
+        <button
+          key={opt.value}
+          onClick={() => onChange(opt.value)}
+          className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+            value === opt.value
+              ? "bg-brand/15 text-brand border-brand/40"
+              : "text-slate/70 border-panel-border hover:text-white hover:border-slate/40"
+          }`}
+        >
+          {opt.label}
+        </button>
+      ))}
     </div>
   );
 }

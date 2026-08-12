@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CheckIcon, DotIcon } from "./icons";
 
 export interface BUEvent {
@@ -92,6 +92,25 @@ export default function StepTimeline({
     .map((event) => ({ event, description: describeEvent(event) }))
     .filter((s): s is Step => Boolean(s.description));
 
+  // Auto-scroll to the latest step as new ones arrive while running — but
+  // only if the user hasn't scrolled up to read something earlier, so
+  // watching live activity doesn't fight anyone reviewing past steps.
+  const containerRef = useRef<HTMLDivElement>(null);
+  const nearBottomRef = useRef(true);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (el && nearBottomRef.current) {
+      el.scrollTop = el.scrollHeight;
+    }
+  }, [steps.length]);
+
+  function handleScroll() {
+    const el = containerRef.current;
+    if (!el) return;
+    nearBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between mb-2.5">
@@ -105,7 +124,11 @@ export default function StepTimeline({
           </button>
         )}
       </div>
-      <div className="border border-panel-border rounded-2xl divide-y divide-panel-border text-sm max-h-96 overflow-y-auto bg-panel">
+      <div
+        ref={containerRef}
+        onScroll={handleScroll}
+        className="border border-panel-border rounded-2xl divide-y divide-panel-border text-sm max-h-96 overflow-y-auto bg-panel"
+      >
         {steps.length === 0 && (
           <div className="px-4 py-3 text-slate/70">Waiting for the agent to start…</div>
         )}
