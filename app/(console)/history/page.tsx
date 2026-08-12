@@ -43,7 +43,7 @@ export default function HistoryPage() {
   }, [runs, agentFilter, outcomeFilter]);
 
   return (
-    <div className="max-w-5xl mx-auto px-6 py-12">
+    <div className="max-w-4xl mx-auto px-6 py-12">
       <div className="flex items-end justify-between mb-8">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">Past runs</h1>

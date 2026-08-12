@@ -73,7 +73,7 @@ export default function RunPage() {
   }, [id]);
 
   if (!run) {
-    return <div className="max-w-3xl mx-auto px-6 py-10 text-slate">Loading…</div>;
+    return <div className="max-w-4xl mx-auto px-6 py-10 text-slate">Loading…</div>;
   }
 
   const events: BUEvent[] = run.events_json ? JSON.parse(run.events_json) : [];
@@ -99,12 +99,14 @@ export default function RunPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-6 py-12 flex flex-col gap-7">
+    <div className="max-w-4xl mx-auto px-6 py-12 flex flex-col gap-7">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{AGENT_LABEL[run.agent_type]}</h1>
           <p className="text-xs text-slate/70 mt-1.5">
             started {formatTime(run.created_at)} · from {run.input_filename} · {run.namespace_tag}
+            {isTerminal && <> · {formatMs(run.updated_at - run.created_at)}</>}
+            {cost?.usd != null && <> · ${cost.usd.toFixed(3)}</>}
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -169,27 +171,12 @@ export default function RunPage() {
         </div>
       )}
 
-      <div className="grid sm:grid-cols-2 gap-6 text-sm">
-        <div>
-          <SectionLabel>What we tested</SectionLabel>
-          <RowTable rows={rows} />
-        </div>
-        <div>
-          <SectionLabel>Time &amp; cost</SectionLabel>
-          <div className="border border-panel-border rounded-2xl px-4 py-3.5 text-xs text-slate bg-panel">
-            {isTerminal && (
-              <div className="text-white mb-1">{formatMs(run.updated_at - run.created_at)} total</div>
-            )}
-            {cost ? (
-              <>
-                {cost.usd != null && <div className="text-brand font-mono">${cost.usd.toFixed(3)} USD</div>}
-                {cost.steps != null && <div className="mt-1">{cost.steps} steps taken</div>}
-              </>
-            ) : (
-              <div className="text-slate/50">Cost not reported for this run.</div>
-            )}
-          </div>
-        </div>
+      <div>
+        <SectionLabel>What we tested</SectionLabel>
+        <RowTable rows={rows} />
+        {cost?.steps != null && (
+          <p className="text-xs text-slate/50 mt-2">{cost.steps} steps taken</p>
+        )}
       </div>
     </div>
   );

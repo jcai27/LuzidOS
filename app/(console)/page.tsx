@@ -45,7 +45,7 @@ export default function LaunchPage() {
 
       <HowItWorks />
 
-      <div className="grid sm:grid-cols-2 gap-6 items-start mt-8">
+      <div className="grid sm:grid-cols-2 gap-6 mt-8">
         {AGENTS.map((agent) => (
           <AgentCard key={agent.type} agent={agent} />
         ))}
