@@ -50,7 +50,9 @@ Steps:
 ${fieldLines}
    If any of these values is rejected as invalid for this system, use that field's value-help (F4 /
    the icon next to the field) to pick any valid value of the same kind so you can proceed, and
-   mention the substitution in your final "reason".
+   mention the substitution in your final "reason". In any value-help search dialog, if two searches
+   in a row return nothing useful, stop narrowing the search term — clear the filter completely and
+   pick the first reasonable entry in the unfiltered list instead of continuing to retry variations.
 4. Click "Continue" to proceed to the order entry screen.
 5. Fill in the remaining order details (e.g. Sold-To Party, PO/customer reference, line item Material
    and Quantity) using the values above. In the purchase order / customer reference text field, if
