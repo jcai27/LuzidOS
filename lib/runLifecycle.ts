@@ -46,6 +46,10 @@ export async function launchRun(
 ): Promise<void> {
   const client = getBrowserUseClient();
   const maxCostUsd = Number(process.env.RUN_MAX_COST_USD ?? "") || undefined;
+  // Per-agent default (see lib/agents/*.ts for what was actually verified),
+  // with the env var available as a blanket override if ever needed.
+  const reasoningEffort =
+    process.env.BROWSER_USE_REASONING_EFFORT ?? getAgentDefinition(agentType).reasoningEffort;
 
   try {
     const {
@@ -55,6 +59,7 @@ export async function launchRun(
     } = await client.createRun({
       task: taskPrompt,
       model: process.env.BROWSER_USE_MODEL,
+      modelParams: reasoningEffort ? { reasoning: { effort: reasoningEffort } } : undefined,
       maxCostUsd,
       stubAgentType: agentType,
     });

@@ -5,6 +5,8 @@ const API_BASE = "https://api.browser-use.com/api/v4";
 export interface CreateRunParams {
   task: string;
   model?: string;
+  /** Provider-native params forwarded as-is, e.g. {"reasoning":{"effort":"low"}} for OpenAI models. gpt-5.6-luna defaults to "xhigh" effort unless this overrides it — a major source of latency on multi-step tasks. */
+  modelParams?: Record<string, unknown>;
   maxCostUsd?: number;
   sessionId?: string;
   /** Only consumed by the stub client; never sent to the real API. */
@@ -82,6 +84,7 @@ export const realBrowserUseClient: BrowserUseClient = {
     const body: Record<string, unknown> = {
       task: params.task,
       model: params.model,
+      modelParams: params.modelParams,
       maxCostUsd: params.maxCostUsd,
       sessionId: params.sessionId,
     };

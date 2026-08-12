@@ -14,6 +14,11 @@ export const configurationAgent: AgentDefinition<ConfigurationResult> = {
   type: "configuration",
   label: "Configuration Agent",
   resultSchema: ConfigurationResultSchema,
+  // Verified: "low" cut this from ~248s/$0.048 to ~130s/$0.020 with no
+  // quality loss across a real run. This flow is short and low-surface-area
+  // enough that the model doesn't need to be careful the way the sales
+  // order flow does — see unitTest.ts for the case where "low" broke.
+  reasoningEffort: "low",
 
   buildTask(rows, creds, namespaceTag) {
     const changes = rows

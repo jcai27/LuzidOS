@@ -186,6 +186,12 @@ workspace, re-uploading them to Vercel Blob before their presigned URLs expire (
   the rows with no run created and no Browser Use call made, so the Launch page can show exactly what
   it read and let the user confirm (or pick a different file) before anything spends real API credits.
 
+- **Reasoning effort is tuned per agent, not globally.** `AgentDefinition.reasoningEffort` (see
+  `lib/agents/base.ts`) lets each agent override Browser Use's default "xhigh" effort independently.
+  Verified for real: "low" makes the Configuration Agent ~2x faster and cheaper with no quality loss;
+  the same setting made the Unit Test Agent fail a real run (it rushed the SAP login and mis-clicked).
+  One's fast, the other stays careful — see NEXT.md for the full comparison.
+
 ---
 
 ## What's fragile / what I'd do next

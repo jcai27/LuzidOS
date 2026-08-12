@@ -16,6 +16,17 @@
   reproducible failure mode of computer-use agents in general (scripted clicks racing page navigation),
   not something specific to SAP or this prompt — worth a standing guardrail in any agent prompt that
   drives a browser through a login/submit flow.
+- **Reasoning effort is a real speed/reliability dial, and it doesn't move the same way for every
+  agent.** Browser Use defaults every model to "xhigh" reasoning effort. Tested "low" and "medium" for
+  real against both agents: for the Configuration Agent (short, low-surface-area flow), "low" cut a run
+  from ~248s/$0.048 to ~130s/$0.020 with no quality loss — now the default for that agent
+  (`lib/agents/configuration.ts`). For the Unit Test Agent (more screens, more fields), "low" actually
+  *failed* a real run — traced it in the event log to the agent submitting SAP's login by clicking
+  hardcoded pixel coordinates instead of carefully deriving them from its own DOM inspection, and
+  missing. "Medium" passed but wasn't meaningfully faster (~471s vs ~495s baseline) — that flow seems to
+  need the full reasoning budget to stay reliable, so it's left at Browser Use's default. The takeaway
+  worth generalizing: reasoning-effort tuning has to be validated per task, not applied as one global
+  setting — a flow's complexity, not its category, predicts whether it tolerates less "thinking."
 - **Credentials are embedded directly in the task prompt sent to the LLM.** Not the original design —
   I built around Browser Use's documented domain-scoped `secrets` param, then discovered (via the live
   `GET /api/v4/openapi.json`, not the docs) that the real `RunCreateRequest` schema has no such field;

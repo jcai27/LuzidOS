@@ -27,4 +27,11 @@ export interface AgentDefinition<TResult> {
   resultSchema: z.ZodType<TResult>;
   buildTask(rows: Row[], creds: SapCreds, namespaceTag: string): string;
   toVerdict(result: TResult): Verdict;
+  /**
+   * Overrides Browser Use's default ("xhigh") reasoning effort for this
+   * agent's runs. This is a real speed/reliability trade-off, verified
+   * empirically per agent — see the comment on each agent's value for what
+   * was actually observed, not just theorized.
+   */
+  reasoningEffort?: "low" | "medium" | "high" | "xhigh";
 }

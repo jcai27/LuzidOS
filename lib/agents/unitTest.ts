@@ -12,6 +12,13 @@ export const unitTestAgent: AgentDefinition<UnitTestResult> = {
   type: "unit_test",
   label: "Unit Test Agent",
   resultSchema: UnitTestResultSchema,
+  // Deliberately left at Browser Use's default ("xhigh"): "low" was tested
+  // and failed a real run — the agent submitted SAP's login by clicking
+  // hardcoded pixel coordinates instead of carefully deriving them from its
+  // own DOM inspection, and missed. "medium" passed but wasn't meaningfully
+  // faster (~471s vs ~495s baseline). This flow has more screens and more
+  // fields than the config agent, and apparently needs the full reasoning
+  // budget to navigate them reliably.
 
   buildTask(rows, creds, namespaceTag) {
     const byField = Object.fromEntries(rows.map((r) => [r.Field, r.Value]));
